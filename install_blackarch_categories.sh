@@ -261,55 +261,57 @@ fi
 
 # List of BlackArch categories to install
 categories=(
-  blackarch
-  blackarch-webapp
-  blackarch-fuzzer
-  blackarch-scanner
-  blackarch-proxy
-  blackarch-windows
-  blackarch-dos
-  blackarch-disassembler
-  blackarch-cracker
-  blackarch-voip
-  blackarch-exploitation
-  blackarch-recon
-  blackarch-spoof
-  blackarch-forensic
-  blackarch-crypto
-  blackarch-backdoor
-  blackarch-networking
-  blackarch-misc
-  blackarch-defensive
-  blackarch-wireless
-  blackarch-automation
-  blackarch-sniffer
-  blackarch-binary
-  blackarch-packer
-  blackarch-reversing
-  blackarch-mobile
-  blackarch-malware
-  blackarch-code-audit
-  blackarch-social
-  blackarch-honeypot
-  blackarch-hardware
-  blackarch-fingerprint
-  blackarch-decompiler
-  blackarch-config
-  blackarch-debugger
-  blackarch-firmware
-  blackarch-bluetooth
-  blackarch-database
-  blackarch-automobile
-  blackarch-nfc
-  blackarch-tunnel
-  blackarch-drone
-  blackarch-unpacker
-  blackarch-radio
-  blackarch-keylogger
-  blackarch-stego
-  blackarch-anti-forensic
-  blackarch-ids
-  blackarch-gpu
+blackarch
+blackarch-webapp
+blackarch-fuzzer
+blackarch-scanner
+blackarch-proxy
+blackarch-windows
+blackarch-dos
+blackarch-disassembler
+blackarch-sniffer
+blackarch-voip
+blackarch-fingerprint
+blackarch-networking
+blackarch-recon
+blackarch-cracker
+blackarch-exploitation
+blackarch-spoof
+blackarch-forensic
+blackarch-crypto
+blackarch-backdoor
+blackarch-defensive
+blackarch-wireless
+blackarch-automation
+blackarch-radio
+blackarch-binary
+blackarch-packer
+blackarch-reversing
+blackarch-mobile
+blackarch-malware
+blackarch-code-audit
+blackarch-social
+blackarch-honeypot
+blackarch-misc
+blackarch-wordlist
+blackarch-decompiler
+blackarch-config
+blackarch-debugger
+blackarch-bluetooth
+blackarch-database
+blackarch-automobile
+blackarch-hardware
+blackarch-nfc
+blackarch-tunnel
+blackarch-drone
+blackarch-unpacker
+blackarch-firmware
+blackarch-keylogger
+blackarch-stego
+blackarch-anti-forensic
+blackarch-ids
+blackarch-threat-model
+blackarch-gpu
 )
 
 # No packages will be skipped - all dependencies installed
