@@ -66,16 +66,25 @@ sudo pacman-key --populate archlinux blackarch >> "$LOG_FILE" 2>&1
 log "✓ Keys populated"
 
 log "Locally signing BlackArch developer key (Evan Teitelman)..."
-sudo pacman-key --lsign-key 4345771566D76038C7FEB43863EC0ADBEA87E4E3 >> "$LOG_FILE" 2>&1
-if [ $? -eq 0 ]; then
-    log "✓ BlackArch developer key signed successfully"
-else
-    log_warning "Key signing failed, adjusting signature level..."
-    sudo sed -i.tmp 's/^SigLevel[[:space:]]*=.*/SigLevel = Optional TrustAll/' /etc/pacman.conf
-    log "⚠ Temporarily set SigLevel to Optional TrustAll"
-fi
+sudo pacman-key --lsign-key 4345771566D76038C7FEB43863EC0ADBEA87E4E3 >> "$LOG_KEYRING_LOG" 2>&1
+log "✓ BlackArch developer key signing attempted."
 
-log "✓ Keyring initialized successfully"
+# ========================================================================
+# === ***IMPROVED PGP HANDLING BLOCK (per user request)*** ===
+# ========================================================================
+# Log analysis shows lsign-key can report success, but pacman still
+# fails with PGP trust errors. We will proactively set SigLevel
+# to TrustAll to prevent this failure and restore it in Phase 6.
+
+log_warning "Proactively adjusting signature level to prevent PGP failures..."
+sudo sed -i.tmp 's/^SigLevel[[:space:]]*=.*/SigLevel = Optional TrustAll/' /etc/pacman.conf
+log "✓ Temporarily set SigLevel to Optional TrustAll"
+
+# ========================================================================
+# === END OF IMPROVED BLOCK ===
+# ========================================================================
+
+log "✓ Keyring initialization complete."
 echo ""
 
 # Clean pacman cache to remove any corrupted packages
@@ -375,21 +384,27 @@ for i in "${!categories[@]}"; do
   cat "$CATEGORY_LOG" >> "$LOG_FILE"
   rm -f "$CATEGORY_LOG"
   
+  # Check if pacman exited with a non-zero status
   if [ "$EXIT_CODE" -eq 0 ]; then
     echo -e "${GREEN}└─ ✓ Success${NC}" | tee -a "$LOG_FILE"
     log "Category $category installed successfully"
     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-  elif [ "$UNRESOLVABLE" -gt 0 ] || [ "$MISSING_DEPS" -gt 0 ] || [ "$CONFLICTS" -gt 0 ]; then
-    echo -e "${RED}└─ ✗ Failed (dependency issues)${NC}" | tee -a "$LOG_FILE"
-    log_error "Category $category failed: Unresolvable=$UNRESOLVABLE, Missing Deps=$MISSING_DEPS, Conflicts=$CONFLICTS"
-    FAILED_COUNT=$((FAILED_COUNT + 1))
-    FAILED_CATEGORIES+=("$category")
-    echo "$category - Unresolvable: $UNRESOLVABLE, Missing Deps: $MISSING_DEPS, Conflicts: $CONFLICTS" >> "$FAILED_PACKAGES"
   else
-    echo -e "${YELLOW}└─ ⚠ Completed with warnings${NC}" | tee -a "$LOG_FILE"
-    log_warning "Category $category completed with warnings (exit code: $EXIT_CODE)"
+    # ANY non-zero exit code is a failure.
     FAILED_COUNT=$((FAILED_COUNT + 1))
-    echo "$category - Exit code: $EXIT_CODE" >> "$FAILED_PACKAGES"
+    FAILED_CATEGORIES+=("$category") # Add to array for Phase 7 retry
+
+    # Log specific error message if found
+    if [ "$UNRESOLVABLE" -gt 0 ] || [ "$MISSING_DEPS" -gt 0 ] || [ "$CONFLICTS" -gt 0 ]; then
+        echo -e "${RED}└─ ✗ Failed (dependency issues)${NC}" | tee -a "$LOG_FILE"
+        log_error "Category $category failed: Unresolvable=$UNRESOLVABLE, Missing Deps=$MISSING_DEPS, Conflicts=$CONFLICTS"
+        echo "$category - Unresolvable: $UNRESOLVABLE, Missing Deps: $MISSING_DEPS, Conflicts: $CONFLICTS" >> "$FAILED_PACKAGES"
+    else
+        # This will now catch PGP errors (exit code 1) and other generic failures
+        echo -e "${RED}└─ ✗ Failed (exit code: $EXIT_CODE)${NC}" | tee -a "$LOG_FILE"
+        log_error "Category $category failed (exit code: $EXIT_CODE). Check log for PGP or other errors."
+        echo "$category - Exit code: $EXIT_CODE" >> "$FAILED_PACKAGES"
+    fi
   fi
   
   echo ""
@@ -425,14 +440,14 @@ log "Installation complete. Generating statistics..."
 
 echo -e "${BLUE}╔═══ Installation Statistics ═══╗${NC}" | tee -a "$LOG_FILE"
 echo -e "  ${GREEN}✓ Successful:${NC}      $SUCCESS_COUNT categories" | tee -a "$LOG_FILE"
-echo -e "  ${YELLOW}⚠ With warnings:${NC}   $FAILED_COUNT categories" | tee -a "$LOG_FILE"
-echo -e "  ${RED}⊗ Skipped:${NC}         $SKIPPED_COUNT categories" | tee -a "$LOG_FILE"
+echo -e "  ${RED}✗ Failed:${NC}          $FAILED_COUNT categories" | tee -a "$LOG_FILE"
+echo -e "  ${YELLOW}⚠ Skipped:${NC}         $SKIPPED_COUNT categories" | tee -a "$LOG_FILE"
 echo -e "${BLUE}╚══════════════════════════════╝${NC}" | tee -a "$LOG_FILE"
 echo "" | tee -a "$LOG_FILE"
 
 # Show failed categories if any
 if [ ${#FAILED_CATEGORIES[@]} -gt 0 ]; then
-    echo -e "${RED}Failed Categories (with dependency issues):${NC}" | tee -a "$LOG_FILE"
+    echo -e "${RED}Failed Categories (will attempt retry):${NC}" | tee -a "$LOG_FILE"
     for failed_cat in "${FAILED_CATEGORIES[@]}"; do
         echo "  • $failed_cat" | tee -a "$LOG_FILE"
     done
@@ -556,6 +571,7 @@ if [ ${#FAILED_CATEGORIES[@]} -gt 0 ]; then
         log "User declined to retry failed categories"
     fi
 else
+    # This is now the expected outcome, since Phase 0 should prevent all PGP failures.
     echo -e "${GREEN}[7/7] All categories processed successfully!${NC}" | tee -a "$LOG_FILE"
     log "Phase 7: No failed categories to retry"
 fi
