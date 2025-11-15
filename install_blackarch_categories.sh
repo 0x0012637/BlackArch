@@ -39,12 +39,21 @@ log "Log file: $LOG_FILE"
 log "Error log: $ERROR_LOG"
 log "Failed packages list: $FAILED_PACKAGES"
 echo ""
+
+# ========================================================================
+# === ***IMPROVEMENT (per user request)*** ===
+# Added -e flag to all introductory echo commands to correctly render colors.
+# ========================================================================
 echo -e "${BLUE}This script will automatically:${NC}"
-echo "  • Install required system dependencies"
-echo "  • Resolve package conflicts"
-echo "  • Install all BlackArch tool categories"
-echo "  • Handle all prompts automatically"
-echo "  • Log all operations to: ${CYAN}$LOG_FILE${NC}"
+echo -e "  • Install required system dependencies"
+echo -e "  • Resolve package conflicts"
+echo -e "  • Install all BlackArch tool categories"
+echo -e "  • Handle all prompts automatically"
+echo -e "  • Log all operations to: ${CYAN}$LOG_FILE${NC}"
+# ========================================================================
+# === END OF IMPROVEMENT ===
+# ========================================================================
+
 echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 echo ""
@@ -66,21 +75,15 @@ sudo pacman-key --populate archlinux blackarch >> "$LOG_FILE" 2>&1
 log "✓ Keys populated"
 
 log "Locally signing BlackArch developer key (Evan Teitelman)..."
-# ***IMPROVEMENT***: Redirect output to $LOG_FILE, not the undefined $LOG_KEYRING_LOG
 sudo pacman-key --lsign-key 4345771566D76038C7FEB43863EC0ADBEA87E4E3 >> "$LOG_FILE" 2>&1
 log "✓ BlackArch developer key signing attempted."
 
 # ========================================================================
 # === ***PROACTIVE PGP HANDLING BLOCK*** ===
 # ========================================================================
-# Log analysis shows lsign-key can report success, but pacman still
-# fails with PGP trust errors. We will proactively set SigLevel
-# to TrustAll to prevent this failure and restore it in Phase 6.
-
 log_warning "Proactively adjusting signature level to prevent PGP failures..."
 sudo sed -i.tmp 's/^SigLevel[[:space:]]*=.*/SigLevel = Optional TrustAll/' /etc/pacman.conf
 log "✓ Temporarily set SigLevel to Optional TrustAll"
-
 # ========================================================================
 # === END OF PGP BLOCK ===
 # ========================================================================
@@ -105,7 +108,6 @@ echo ""
 log "===== Installing ALL mandatory system dependencies ====="
 
 # Define list of mandatory packages from official repos
-# We will install these "in one go" as requested
 PACMAN_DEPS=(
     "jre17-openjdk"
     "rust"
@@ -142,7 +144,6 @@ fi
 log "Skipping plasma-framework (calamares excluded)"
 
 # 5. Vagrant (MANDATORY - from AUR)
-# This must be handled separately as it's not in the official repos.
 if ! pacman -Q vagrant &>/dev/null; then
     log "Installing vagrant (MANDATORY for malboxes)..."
     if sudo pacman -S --needed --noconfirm vagrant >> "$LOG_FILE" 2>&1; then
@@ -304,7 +305,7 @@ categories=(
   blackarch-drone
   blackarch-unpacker
   blackarch-radio
-  blackm-keylogger
+  blackarch-keylogger
   blackarch-stego
   blackarch-anti-forensic
   blackarch-ids
