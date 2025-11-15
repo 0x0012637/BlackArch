@@ -66,11 +66,12 @@ sudo pacman-key --populate archlinux blackarch >> "$LOG_FILE" 2>&1
 log "✓ Keys populated"
 
 log "Locally signing BlackArch developer key (Evan Teitelman)..."
-sudo pacman-key --lsign-key 4345771566D76038C7FEB43863EC0ADBEA87E4E3 >> "$LOG_KEYRING_LOG" 2>&1
+# ***IMPROVEMENT***: Redirect output to $LOG_FILE, not the undefined $LOG_KEYRING_LOG
+sudo pacman-key --lsign-key 4345771566D76038C7FEB43863EC0ADBEA87E4E3 >> "$LOG_FILE" 2>&1
 log "✓ BlackArch developer key signing attempted."
 
 # ========================================================================
-# === ***IMPROVED PGP HANDLING BLOCK (per user request)*** ===
+# === ***PROACTIVE PGP HANDLING BLOCK*** ===
 # ========================================================================
 # Log analysis shows lsign-key can report success, but pacman still
 # fails with PGP trust errors. We will proactively set SigLevel
@@ -81,7 +82,7 @@ sudo sed -i.tmp 's/^SigLevel[[:space:]]*=.*/SigLevel = Optional TrustAll/' /etc/
 log "✓ Temporarily set SigLevel to Optional TrustAll"
 
 # ========================================================================
-# === END OF IMPROVED BLOCK ===
+# === END OF PGP BLOCK ===
 # ========================================================================
 
 log "✓ Keyring initialization complete."
@@ -98,37 +99,50 @@ sudo pacman -Syy --noconfirm >> "$LOG_FILE" 2>&1
 log "✓ Package database updated"
 echo ""
 
-# Install ALL system dependencies (MANDATORY in Phase 0)
+# ========================================================================
+# === ***IMPROVED DEPENDENCY INSTALL BLOCK (Consolidated)*** ===
+# ========================================================================
 log "===== Installing ALL mandatory system dependencies ====="
 
-# 1. Java Runtime (MANDATORY)
-if ! pacman -Q jre17-openjdk &>/dev/null; then
-    log "Installing Java Runtime (jre17-openjdk)..."
-    sudo pacman -S --needed --noconfirm jre17-openjdk >> "$LOG_FILE" 2>&1 && log "✓ Java Runtime installed" || log_error "FAILED: Java Runtime"
-else
-    log "✓ Java Runtime already installed"
-fi
+# Define list of mandatory packages from official repos
+# We will install these "in one go" as requested
+PACMAN_DEPS=(
+    "jre17-openjdk"
+    "rust"
+    "tesseract-data-eng"
+    "python-yara-python-dex"
+    "python-wapiti-arsenic"
+    "create_ap"
+)
 
-# 2. Rust/Cargo (MANDATORY)
-if ! pacman -Q rust &>/dev/null; then
-    log "Installing Rust/Cargo..."
-    sudo pacman -S --needed --noconfirm rust >> "$LOG_FILE" 2>&1 && log "✓ Rust/Cargo installed" || log_error "FAILED: Rust/Cargo"
-else
-    log "✓ Rust/Cargo already installed"
-fi
+# Filter out packages that are already installed
+DEPS_TO_INSTALL=()
+for pkg in "${PACMAN_DEPS[@]}"; do
+    if ! pacman -Q "$pkg" &>/dev/null; then
+        DEPS_TO_INSTALL+=("$pkg")
+    else
+        log "✓ $pkg already installed"
+    fi
+done
 
-# 3. Tesseract OCR data (MANDATORY)
-if ! pacman -Q tesseract-data-eng &>/dev/null; then
-    log "Installing Tesseract OCR data (English)..."
-    sudo pacman -S --needed --noconfirm tesseract-data-eng >> "$LOG_FILE" 2>&1 && log "✓ Tesseract installed" || log_error "FAILED: Tesseract"
+# Install all missing repo packages "in one go"
+if [ ${#DEPS_TO_INSTALL[@]} -gt 0 ]; then
+    log "Installing missing repo dependencies: ${DEPS_TO_INSTALL[*]}..."
+    sudo pacman -S --needed --noconfirm "${DEPS_TO_INSTALL[@]}" >> "$LOG_FILE" 2>&1
+    if [ $? -eq 0 ]; then
+        log "✓ All repo dependencies installed successfully."
+    else
+        log_error "FAILED to install one or more repo dependencies. Check log."
+    fi
 else
-    log "✓ Tesseract already installed"
+    log "✓ All mandatory repo dependencies are already satisfied."
 fi
 
 # 4. Plasma Framework - EXCLUDED (calamares not needed)
 log "Skipping plasma-framework (calamares excluded)"
 
 # 5. Vagrant (MANDATORY - from AUR)
+# This must be handled separately as it's not in the official repos.
 if ! pacman -Q vagrant &>/dev/null; then
     log "Installing vagrant (MANDATORY for malboxes)..."
     if sudo pacman -S --needed --noconfirm vagrant >> "$LOG_FILE" 2>&1; then
@@ -155,35 +169,11 @@ else
     log "✓ Vagrant already installed"
 fi
 
-# 6. Install conflict replacement packages (MANDATORY)
-log "Installing conflict replacement packages..."
-
-# python-yara-python-dex (replaces python-yara)
-if ! pacman -Q python-yara-python-dex &>/dev/null; then
-    log "Installing python-yara-python-dex..."
-    sudo pacman -S --needed --noconfirm python-yara-python-dex >> "$LOG_FILE" 2>&1 && log "✓ python-yara-python-dex installed" || log_error "FAILED: python-yara-python-dex"
-else
-    log "✓ python-yara-python-dex already installed"
-fi
-
-# python-wapiti-arsenic (replaces python-arsenic)
-if ! pacman -Q python-wapiti-arsenic &>/dev/null; then
-    log "Installing python-wapiti-arsenic..."
-    sudo pacman -S --needed --noconfirm python-wapiti-arsenic >> "$LOG_FILE" 2>&1 && log "✓ python-wapiti-arsenic installed" || log_error "FAILED: python-wapiti-arsenic"
-else
-    log "✓ python-wapiti-arsenic already installed"
-fi
-
-# create_ap (replaces linux-wifi-hotspot)
-if ! pacman -Q create_ap &>/dev/null; then
-    log "Installing create_ap..."
-    sudo pacman -S --needed --noconfirm create_ap >> "$LOG_FILE" 2>&1 && log "✓ create_ap installed" || log_error "FAILED: create_ap"
-else
-    log "✓ create_ap already installed"
-fi
-
 log "===== All mandatory dependencies installed ====="
 echo ""
+# ========================================================================
+# === END OF IMPROVED DEPENDENCY BLOCK ===
+# ========================================================================
 
 # Step 1: Verify dependencies (all installed in Phase 0)
 echo -e "${YELLOW}[1/7] Verifying system dependencies...${NC}" | tee -a "$LOG_FILE"
@@ -205,45 +195,50 @@ else
     log "✓ All mandatory dependencies verified installed"
 fi
 
-# Step 2: Handle package conflicts
+# ========================================================================
+# === ***IMPROVED PHASE 2 (Conflict Resolution Logging)*** ===
+# ========================================================================
 echo -e "${YELLOW}[2/7] Resolving package conflicts...${NC}" | tee -a "$LOG_FILE"
 log "Phase 2: Resolving package conflicts"
 
-# Remove conflicting Python YARA package (if it exists)
+# Check and remove python-yara
 if pacman -Q python-yara &>/dev/null; then
     log "Removing python-yara (conflicts with python-yara-python-dex)..."
     if sudo pacman -Rdd --noconfirm python-yara >> "$LOG_FILE" 2>&1; then
         log "✓ python-yara removed successfully"
     else
-        log_warning "python-yara not installed or already removed"
+        log_warning "Failed to remove python-yara (it was detected, but removal failed. Check log for pacman error.)"
     fi
 else
-    log "python-yara not installed, skipping removal"
+    log "python-yara not installed, no conflict."
 fi
 
-# Remove conflicting arsenic package (if it exists)
+# Check and remove python-arsenic
 if pacman -Q python-arsenic &>/dev/null; then
     log "Removing python-arsenic (conflicts with python-wapiti-arsenic)..."
     if sudo pacman -Rdd --noconfirm python-arsenic >> "$LOG_FILE" 2>&1; then
         log "✓ python-arsenic removed successfully"
     else
-        log_warning "python-arsenic not installed or already removed"
+        log_warning "Failed to remove python-arsenic (it was detected, but removal failed. Check log for pacman error.)"
     fi
 else
-    log "python-arsenic not installed, skipping removal"
+    log "python-arsenic not installed, no conflict."
 fi
 
-# Remove linux-wifi-hotspot (conflicts with create_ap in blackarch-wireless)
+# Check and remove linux-wifi-hotspot
 if pacman -Q linux-wifi-hotspot &>/dev/null; then
     log "Removing linux-wifi-hotspot (conflicts with create_ap)..."
     if sudo pacman -Rdd --noconfirm linux-wifi-hotspot >> "$LOG_FILE" 2>&1; then
         log "✓ linux-wifi-hotspot removed successfully"
     else
-        log_warning "Failed to remove linux-wifi-hotspot"
+        log_warning "Failed to remove linux-wifi-hotspot (it was detected, but removal failed. Check log for pacman error.)"
     fi
 else
-    log "linux-wifi-hotspot not installed, no conflict"
+    log "linux-wifi-hotspot not installed, no conflict."
 fi
+# ========================================================================
+# === END OF IMPROVED PHASE 2 ===
+# ========================================================================
 
 # Step 3: Sync and update package database
 echo -e "${YELLOW}[3/7] Updating package database...${NC}" | tee -a "$LOG_FILE"
@@ -309,7 +304,7 @@ categories=(
   blackarch-drone
   blackarch-unpacker
   blackarch-radio
-  blackarch-keylogger
+  blackm-keylogger
   blackarch-stego
   blackarch-anti-forensic
   blackarch-ids
