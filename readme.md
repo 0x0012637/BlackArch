@@ -694,7 +694,7 @@ chmod +x install_blackarch_categories.sh
 - ✅ **Zero manual intervention** required (except retry prompt)
 
 ### What Gets Installed
-- 📦 **51 BlackArch categories** (2000+ security tools)
+- 📦 **51 BlackArch categories** (2869+ security tools)
 - ⚙️ **All dependencies** (Java, Rust, Tesseract, Vagrant)
 - 🔧 **Conflict replacements** (python-yara-python-dex, create_ap)
 - ⚠️ **Minimal exclusions** (calamares, aws-extender-cli)
@@ -713,7 +713,7 @@ chmod +x install_blackarch_categories.sh
 ### 🏆 Achievement: 100% Success Rate
 ```
 ████████████████████ 51/51 CATEGORIES (100%)
-████████████████████ 2000+ TOOLS INSTALLED
+████████████████████ 2869+ TOOLS INSTALLED
 ████████████████████ ZERO FAILURES
 ```
 
