@@ -1,4 +1,15 @@
+*Last Updated: 2025-11-15*
+*Script Version: 587 lines*
+*Verified: 100% success on Garuda Linux*
+
 # BlackArch Auto-Installation Script - Complete Documentation
+
+### 🏆 Achievement: 100% Success Rate
+```
+████████████████████ 51/51 CATEGORIES (100%)
+████████████████████ 2869+ BlackArch TOOLS INSTALLED
+████████████████████ ZERO FAILURES
+```
 
 ## 🎯 Overview
 
@@ -710,12 +721,7 @@ chmod +x install_blackarch_categories.sh
 
 ---
 
-### 🏆 Achievement: 100% Success Rate
-```
-████████████████████ 51/51 CATEGORIES (100%)
-████████████████████ 2869+ TOOLS INSTALLED
-████████████████████ ZERO FAILURES
-```
+
 
 *Last Updated: 2025-11-15*
 *Script Version: 587 lines*
